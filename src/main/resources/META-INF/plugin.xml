@@ -2,7 +2,7 @@
     <id>com.acme.branchguard</id>
     <name>Branch Guard</name>
     <version>@project.version@</version>
-    <vendor>ACME</vendor>
+    <vendor email="jly9948@163.com" url="https://github.com/OscaLibra">JiangLingyun</vendor>
 
     <idea-version since-build="@since.build@"/>
 
