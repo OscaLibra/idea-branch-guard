@@ -1,0 +1,22 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>plugin</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+
+    <!-- 必须有顶层插件目录：
+         IDEA 解压 zip 后把第一个顶层条目当作插件根目录，
+         若根目录直接是 lib/，它会去 lib/lib/*.jar 找描述符并报
+         "无法加载插件描述符"。 -->
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <baseDirectory>branch-guard</baseDirectory>
+
+    <files>
+        <file>
+            <source>${project.build.directory}/${project.build.finalName}.jar</source>
+            <outputDirectory>lib</outputDirectory>
+        </file>
+    </files>
+</assembly>

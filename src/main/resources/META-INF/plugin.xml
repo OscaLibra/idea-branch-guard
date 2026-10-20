@@ -1,0 +1,36 @@
+<idea-plugin>
+    <id>com.acme.branchguard</id>
+    <name>Branch Guard</name>
+    <version>@project.version@</version>
+    <vendor>ACME</vendor>
+
+    <idea-version since-build="@since.build@"/>
+
+    <description><![CDATA[
+        <p>提交前校验当前 Git 分支：不符合规则时阻断提交，合并（merge）提交自动放行。</p>
+        <ul>
+            <li>白名单 / 黑名单两种规则模式</li>
+            <li>支持 <code>feature/*</code>、<code>release/*</code> 等通配符</li>
+            <li>规则随项目存放在 <code>.idea/branch-guard.xml</code>，可与团队共享</li>
+        </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <ul><li>1.0.0：提交前分支校验、阻断提示、规则配置。</li></ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <checkinHandlerFactory implementation="com.acme.branchguard.commit.BranchGuardCheckinHandlerFactory"/>
+
+        <projectService serviceImplementation="com.acme.branchguard.settings.BranchGuardSettings"/>
+
+        <projectConfigurable id="com.acme.branchguard.settings"
+                            displayName="Branch Guard"
+                            instance="com.acme.branchguard.settings.BranchGuardConfigurable"/>
+
+        <notificationGroup id="Branch Guard" displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>

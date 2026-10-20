@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.acme.branchguard</groupId>
+    <artifactId>branch-guard</artifactId>
+    <version>1.0.2</version>
+    <packaging>jar</packaging>
+    <name>Branch Guard</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 本地 IDEA 安装目录 -->
+        <idea.home>D:/Apps/JetBrains/IntelliJ IDEA 2026.2.1</idea.home>
+
+        <!-- 与 idea.home 配套的三个值：换 SDK 时一起改
+             2026.2.1 → release 25 / since-build 262
+             2023.3.8 → release 17 / since-build 233 -->
+        <platform.release>25</platform.release>
+        <since.build>262</since.build>
+        <maven.compiler.release>${platform.release}</maven.compiler.release>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>branch-guard-${project.version}</finalName>
+
+        <resources>
+            <!-- plugin.xml 需要注入版本号与 since-build -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/plugin.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/plugin.xml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
+        <plugins>
+            <!-- 0) 环境闸门：Maven 必须跑在 JDK 17+（本机用 IDEA 自带 JBR 25） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,)</version>
+                                    <!-- 英文：中文提示在 Windows GBK 控制台会乱码 -->
+                                    <message>JAVA_HOME must point to JDK 17+ before running Maven</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion><version>[3.9.0,)</version></requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 1) 主源码编译：classpath 来自 IDE 发行包，不写死 jar 名 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>compile-main</id>
+                        <phase>compile</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.outputDirectory}"/>
+                                <javac srcdir="${project.basedir}/src/main/java"
+                                       destdir="${project.build.outputDirectory}"
+                                       release="${platform.release}"
+                                       encoding="UTF-8"
+                                       debug="true"
+                                       includeantruntime="false">
+                                    <classpath>
+                                        <!-- 2026.2：lib/*.jar + lib/<模块>.jar 均已扁平化 -->
+                                        <fileset dir="${idea.home}/lib" includes="*.jar,**/*.jar"/>
+                                        <!-- 2026.x 为 plugins/vcs-git，2023.3~2025.x 为 plugins/git4idea -->
+                                        <fileset dir="${idea.home}/plugins"
+                                                 includes="vcs-git/lib/**/*.jar,git4idea/lib/**/*.jar"/>
+                                    </classpath>
+                                </javac>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 2) 关掉默认主源码编译，避免与 antrun 重复 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <skipMain>true</skipMain>
+                </configuration>
+            </plugin>
+
+            <!-- 3) 单元测试：rule 包不依赖 IDE，普通 JUnit 即可 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
+            <!-- 3.1) 插件 jar 里不需要 Maven 元数据 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <addMavenDescriptor>false</addMavenDescriptor>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- 4) 组装插件 zip：lib/branch-guard-1.0.0.jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/assembly/plugin.xml</descriptor>
+                    </descriptors>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <finalName>branch-guard-${project.version}</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-plugin-zip</id>
+                        <phase>package</phase>
+                        <goals><goal>single</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
