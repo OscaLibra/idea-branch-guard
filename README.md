@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| 最新版本 | [v1.0.2](https://github.com/OscaLibra/idea-branch-guard/releases/latest) |
+| 最新版本 | [v1.0.3](https://github.com/OscaLibra/idea-branch-guard/releases/latest) |
 | 适用 IDE | IntelliJ IDEA **2026.2+**（Community / Ultimate，build 262+） |
 | 构建方式 | Maven 3.9 + JDK 25（IDEA 自带 JBR 即可） |
 | 开发者 | JiangLingyun |
@@ -130,7 +130,7 @@ release/*
 不是。本地插件可被禁用，它定位是"让开发者少犯错"；强约束请配置在服务端（保护分支 / push rule）。
 
 **Q：为什么我的分支没在设置页的规则里也被拦/放行了？**
-确认当前会话是否重启过 IDEA——1.0.1 之前的版本存在"重启后不拦截"的问题，请升级到 **1.0.2+**。
+确认当前会话是否重启过 IDEA——1.0.1 之前的版本存在"重启后不拦截"的问题，请升级到 **1.0.3+**。
 
 ---
 

@@ -74,8 +74,11 @@ public final class BranchGuardCheckinHandler extends CheckinHandler {
             Locale locale = resolveLocale(state);
             UIUtil.invokeAndWaitIfNeeded(() -> showBlockedDialog(violations, config, locale));
             return ReturnResult.CANCEL;
-        } catch (Exception e) {
-            // fail-open：插件故障绝不阻塞用户提交
+        } catch (Throwable e) {
+            // fail-open：插件故障绝不阻塞用户提交。
+            // 必须 catch Throwable：平台的部分断言（如 "Do not call synchronous
+            // repository update in EDT"）抛的是裸 Throwable，catch Exception 接不住，
+            // 会变成插件报错弹窗而不是静默放行。
             LOG.warn("Branch Guard 执行失败，已放行本次提交", e);
             return ReturnResult.COMMIT;
         } finally {
