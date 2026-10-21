@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| 最新版本 | [v1.0.3](https://github.com/OscaLibra/idea-branch-guard/releases/latest) |
+| 最新版本 | [v1.0.4](https://github.com/OscaLibra/idea-branch-guard/releases/latest) |
 | 适用 IDE | IntelliJ IDEA **2026.2+**（Community / Ultimate，build 262+） |
 | 构建方式 | Maven 3.9 + JDK 25（IDEA 自带 JBR 即可） |
 | 开发者 | JiangLingyun |
@@ -130,7 +130,7 @@ release/*
 不是。本地插件可被禁用，它定位是"让开发者少犯错"；强约束请配置在服务端（保护分支 / push rule）。
 
 **Q：为什么我的分支没在设置页的规则里也被拦/放行了？**
-确认当前会话是否重启过 IDEA——1.0.1 之前的版本存在"重启后不拦截"的问题，请升级到 **1.0.3+**。
+确认当前会话是否重启过 IDEA——1.0.1 之前的版本存在"重启后不拦截"的问题，请升级到 **1.0.4+**。
 
 ---
 
@@ -167,6 +167,32 @@ src/main/java/com/acme/branchguard/
 ├── commit/     平台接入层（提交拦截、仓库解析）
 └── settings/   配置层（持久化 + 设置页）
 ```
+
+## 更新日志
+
+### v1.0.4
+
+- 修正仓库归属判定：**逐文件**取"根路径最长"的仓库。1.0.3 的实现会把包含子仓库目录的父仓库也算作命中，
+  导致在 submodule / 嵌套仓库里提交时，被父仓库的分支状态误判拦截。
+
+### v1.0.3
+
+- 修复 `Do not call synchronous repository update in EDT` 运行时报错：非模态提交的 `beforeCheckin()`
+  在 EDT 执行，原先的 `getRepositoryForRoot(Quick)` 可能触发同步仓库更新并抛裸 `Throwable`。
+  改为只读 `getRepositories()` + 路径前缀匹配；兜底分支同步改为 `catch (Throwable)`。
+
+### v1.0.2
+
+- 开发者信息改为 JiangLingyun；README 重写为项目介绍与使用说明。
+
+### v1.0.1
+
+- 修复"首次提交能拦、重启 IDEA 后不再拦截"：工厂里不再做仓库空判断，仓库解析移到 `beforeCheckin()`。
+- 弹窗排版修正（路径只显示最后一段目录名）；新增弹窗语言独立配置（跟随 IDE / 简体中文 / English）。
+
+### v1.0.0
+
+- 首个可用版本：分支白名单拦截、禅模式生效、可关闭仅提示。
 
 ---
 

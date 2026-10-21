@@ -25,7 +25,12 @@ import java.util.List;
  * {@code Throwable: Do not call synchronous repository update in EDT}。</p>
  *
  * <p>因此这里<b>只读</b> {@link GitRepositoryManager#getRepositories()}（纯内存），
- * 用「仓库根路径的最长前缀匹配」定位文件所属仓库，不做任何可能触发更新的调用。</p>
+ * 用「根路径最长前缀匹配」为每个文件定位其<b>最内层</b>仓库（语义与
+ * {@code ProjectLevelVcsManager#getVcsRootFor} 一致），
+ * 不做任何可能触发更新的调用。</p>
+ *
+ * <p>取最内层很关键：嵌套仓库 / submodule 场景下，子仓库里的文件同时也位于父仓库目录内，
+ * 若把父仓库也算作命中，父仓库的分支状态会连带把提交误判为违规。</p>
  */
 public final class BranchGuardChecker {
 
@@ -55,12 +60,13 @@ public final class BranchGuardChecker {
 
         List<GitRepository> registered = GitRepositoryManager.getInstance(project).getRepositories();
 
-        // 记录命中的仓库（去重），文件归属用最长前缀匹配（支持嵌套仓库）
+        // 每个文件归属到根路径最长的仓库（嵌套仓库 / submodule 取最内层），再对仓库去重
         List<Violation> violations = new ArrayList<>();
         List<GitRepository> hit = new ArrayList<>();
-        for (GitRepository repo : registered) {
-            if (containsFile(repo, files)) {
-                hit.add(repo);
+        for (File file : files) {
+            GitRepository owner = locateOwner(registered, file);
+            if (owner != null && !hit.contains(owner)) {
+                hit.add(owner);
             }
         }
 
@@ -80,16 +86,29 @@ public final class BranchGuardChecker {
         return new CheckResult(violations, hit.size());
     }
 
-    /** 本仓库是否包含待提交文件中的任意一个。 */
-    private static boolean containsFile(@NotNull GitRepository repo, @NotNull Collection<File> files) {
-        String root = repo.getRoot().getPath();
-        for (File file : files) {
-            String path = normalize(file);
-            if (path != null && under(path, root)) {
-                return true;
+    /**
+     * 在已注册仓库中找出该文件所属的仓库：命中「根路径最长」的那个，即最内层仓库。
+     * 找不到（例如该文件不在任何 Git 仓库内，或仓库尚未被平台注册）时返回 null。
+     */
+    private static @Nullable GitRepository locateOwner(@NotNull List<GitRepository> repositories,
+                                                       @NotNull File file) {
+        String path = normalize(file);
+        if (path == null) {
+            return null;
+        }
+        GitRepository best = null;
+        int bestLength = -1;
+        for (GitRepository repo : repositories) {
+            String root = normalize(repo.getRoot().getPath());
+            if (root == null) {
+                continue;
+            }
+            if (under(path, root) && root.length() > bestLength) {
+                best = repo;
+                bestLength = root.length();
             }
         }
-        return false;
+        return best;
     }
 
     /**
@@ -100,7 +119,7 @@ public final class BranchGuardChecker {
         return path.equals(root) || path.startsWith(root + "/");
     }
 
-    /** 归一化为 VFS 风格路径（正斜杠），供与 {@code repo.getRoot().getPath()} 比较。 */
+    /** 文件 → 归一化路径。已删除文件也用 canonical path，路径依然存在。 */
     private static @Nullable String normalize(@NotNull File file) {
         String p;
         try {
@@ -108,10 +127,18 @@ public final class BranchGuardChecker {
         } catch (IOException e) {
             p = file.getAbsolutePath();
         }
-        p = p.replace('\\', '/');
-        if (p.length() > 1 && p.endsWith("/")) {
-            p = p.substring(0, p.length() - 1);
+        return normalize(p);
+    }
+
+    /** 归一化为 VFS 风格路径（正斜杠、去掉末尾斜杠），供与仓库根路径比较。 */
+    private static @Nullable String normalize(@NotNull String p) {
+        if (p.isEmpty()) {
+            return null;
         }
-        return p;
+        String r = p.replace('\\', '/');
+        if (r.length() > 1 && r.endsWith("/")) {
+            r = r.substring(0, r.length() - 1);
+        }
+        return r;
     }
 }
